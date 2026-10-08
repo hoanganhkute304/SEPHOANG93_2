@@ -1,0 +1,40 @@
+{
+  "apps": [
+    {
+      "id": "mic-93-win",
+      "name": "Mic 93",
+      "platform": "windows",
+      "fileExtension": ".exe",
+      "packageName": "com.mic93.win",
+      "version": "v1.0.0",
+      "description": "Phần mềm Soundboard & Voice Mod (GayMic) giúp giả lập và xử lý âm thanh trực tiếp trên Windows.",
+      "category": "Tiện ích & Phần mềm",
+      "osRequirement": "Windows 10 / 11 (64-bit)",
+      "fileSize": "15.4 MB",
+      "downloadUrl": "/uploads/Mic93.exe",
+      "isUploadedFile": true,
+      "filename": "Mic93.exe",
+      "iconUrl": "/uploads/logo.png",
+      "bannerUrl": "/uploads/bg.png",
+      "screenshots": [
+        "/uploads/bg.png"
+      ],
+      "downloadsCount": 9,
+      "rating": 5,
+      "uploadedBy": "Tech.Store93",
+      "createdAt": "2026-10-08T17:00:00.000Z",
+      "updatedAt": "2026-10-08T17:00:00.000Z",
+      "changelog": "Bản phát hành chính thức.",
+      "apkSha256": "",
+      "tags": [
+        "soundboard",
+        "voice-mod"
+      ],
+      "features": [
+        "Tối ưu độ trễ thấp",
+        "Giao diện phím tắt trực quan",
+        "Tương thích Windows 10/11"
+      ]
+    }
+  ]
+}

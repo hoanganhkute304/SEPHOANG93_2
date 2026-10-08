@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global website branding and settings",
+      "type": "object",
+      "properties": {
+        "headerLogoUrl": {
+          "type": "string",
+          "description": "Custom header logo image URL or base64 data URL"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      }
+    },
+    "AppItem": {
+      "title": "AppItem",
+      "description": "An application or software item stored in Firestore",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the application"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the application",
+          "maxLength": 100
+        },
+        "platform": {
+          "type": "string",
+          "description": "Platform type: windows, android, or cross",
+          "enum": ["windows", "android", "cross"]
+        },
+        "fileExtension": {
+          "type": "string",
+          "description": "File extension such as .exe or .apk",
+          "maxLength": 10
+        },
+        "packageName": {
+          "type": "string",
+          "description": "Package name or identifier",
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "description": "Version string e.g. v1.0.0",
+          "maxLength": 30
+        },
+        "versionCode": {
+          "type": "number",
+          "description": "Numeric version code"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the application",
+          "maxLength": 2000
+        },
+        "category": {
+          "type": "string",
+          "description": "Category name",
+          "maxLength": 50
+        },
+        "osRequirement": {
+          "type": "string",
+          "description": "Operating system requirements",
+          "maxLength": 100
+        },
+        "fileSize": {
+          "type": "string",
+          "description": "Human-readable file size",
+          "maxLength": 30
+        },
+        "downloadUrl": {
+          "type": "string",
+          "description": "URL or path to download the application",
+          "maxLength": 500
+        },
+        "isUploadedFile": {
+          "type": "boolean",
+          "description": "Whether the binary was uploaded or is an external URL"
+        },
+        "filename": {
+          "type": "string",
+          "description": "Original file name",
+          "maxLength": 150
+        },
+        "iconUrl": {
+          "type": "string",
+          "description": "URL of the application icon",
+          "maxLength": 500
+        },
+        "bannerUrl": {
+          "type": "string",
+          "description": "URL of the background banner image",
+          "maxLength": 500
+        },
+        "downloadsCount": {
+          "type": "number",
+          "description": "Number of times downloaded"
+        },
+        "rating": {
+          "type": "number",
+          "description": "User rating"
+        },
+        "uploadedBy": {
+          "type": "string",
+          "description": "Uploader name",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "name", "platform", "downloadUrl", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/SiteSettings"
+      },
+      "description": "Global settings and branding configuration"
+    },
+    "/apps/{appId}": {
+      "schema": {
+        "$ref": "#/entities/AppItem"
+      },
+      "description": "Collection of all uploaded applications and software"
+    }
+  }
+}

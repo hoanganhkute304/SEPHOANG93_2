@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidApp(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+             data.platform is string && (data.platform == 'windows' || data.platform == 'android' || data.platform == 'cross') &&
+             data.downloadUrl is string && data.downloadUrl.size() > 0 && data.downloadUrl.size() <= 1000 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 5000)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+             (!('fileSize' in data) || (data.fileSize is string && data.fileSize.size() <= 50)) &&
+             (!('version' in data) || (data.version is string && data.version.size() <= 50)) &&
+             (!('downloadsCount' in data) || (data.downloadsCount is number && data.downloadsCount >= 0));
+    }
+
+    match /apps/{appId} {
+      allow read: if true;
+
+      allow create: if isValidId(appId) &&
+                       isValidApp(incoming()) &&
+                       incoming().id == appId;
+
+      allow update: if isValidId(appId) &&
+                       isValidApp(incoming()) &&
+                       incoming().id == existing().id &&
+                       (!('createdAt' in incoming()) || incoming().createdAt == existing().createdAt);
+
+      allow delete: if isValidId(appId);
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId);
+    }
+  }
+}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <!-- Background badge -->
+  <rect width="500" height="500" rx="40" fill="#ffffff" />
+  
+  <!-- Left Big Block Letter S -->
+  <!-- Outer S shape -->
+  <path d="M 40 70 L 245 70 L 245 195 L 145 195 L 145 235 L 245 260 L 245 430 L 40 430 L 40 305 L 140 305 L 140 270 L 40 245 Z" fill="#050505" />
+
+  <!-- Right Big Block Letter H -->
+  <!-- Left leg, crossbar, right leg -->
+  <path d="M 255 70 L 360 70 L 360 215 L 400 215 L 400 70 L 475 70 L 475 430 L 400 430 L 400 285 L 360 285 L 360 430 L 255 430 Z" fill="#050505" />
+
+  <!-- Overlaid Athletic Cut Numbers: 9 and 3 -->
+  <!-- Number 9 (left/center) in dark charcoal gray -->
+  <g fill="#555555" stroke="#050505" stroke-width="2">
+    <!-- 9 outer & inner loop -->
+    <path d="M 155 220 L 235 220 L 235 370 L 155 370 L 155 330 L 200 330 L 200 305 L 155 305 Z M 185 248 L 205 248 L 205 278 L 185 278 Z" fill-rule="evenodd" />
+    
+    <!-- Number 3 (right/center) in dark charcoal gray -->
+    <path d="M 265 220 L 345 220 L 345 370 L 265 370 L 265 335 L 315 335 L 315 310 L 280 310 L 280 280 L 315 280 L 315 255 L 265 255 Z" />
+  </g>
+</svg>

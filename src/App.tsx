@@ -282,7 +282,7 @@ export default function App() {
       // 4. Tạo thẻ <a> ẩn có target="_blank" để tải file ngầm (KHÔNG RELOAD TRANG)
       const link = document.createElement('a');
       link.href = targetUrl;
-      link.target = '_blank'; // Quan trọng: Mở tiến trình tải ở tab/nền khác
+      link.target = '_blank'; // Mở tải ngầm không load lại trang
       link.setAttribute('download', app.filename || `${app.name}${app.fileExtension || (isWin ? '.exe' : '.apk')}`);
       document.body.appendChild(link);
       link.click();
@@ -341,7 +341,7 @@ export default function App() {
         className="hidden"
       />
 
-      {/* MÀN CHÀO: HIỆU ỨNG VÉN MƯỢT MÀ */}
+      {/* MÀN CHÀO: HIỆU ỨNG VÉN MƯỢT MÀ, THÊM HOVER 3D ĐẸP MẮT */}
       {!hasEntered && (
         <div
           onClick={handleEnterSite}
@@ -352,26 +352,28 @@ export default function App() {
           }`}
           title="Nhấp để vào trang web"
         >
-          <div className="relative group p-6 flex flex-col items-center justify-center">
+          <div className="relative group p-6 flex flex-col items-center justify-center perspective-[1000px]">
             <img
               src={headerLogoUrl || '/sephoang93-logo.svg'}
               alt="Logo"
-              className="max-h-28 sm:max-h-40 w-auto object-contain filter drop-shadow-[0_0_35px_rgba(56,189,248,0.5)] mix-blend-screen transition-transform duration-700 group-hover:scale-105"
+              className="max-h-28 sm:max-h-40 w-auto object-contain filter drop-shadow-[0_0_35px_rgba(56,189,248,0.5)] mix-blend-screen transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-y-[15deg] group-hover:drop-shadow-[0_0_50px_rgba(56,189,248,0.8)]"
               style={{ mixBlendMode: 'screen' }}
             />
+            {/* Lớp nhấp nháy phát sáng nhẹ dưới logo khi hover */}
+            <div className="absolute inset-0 bg-cyan-500/20 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-full w-full h-1/2 mt-auto"></div>
           </div>
         </div>
       )}
 
-      {/* NÚT TẮT / BẬT NHẠC */}
+      {/* NÚT TẮT / BẬT NHẠC (THÊM HIỆU ỨNG TRỎ VÀO CỰC ĐẸP) */}
       <button
         type="button"
         onClick={toggleMusic}
-        className="fixed bottom-6 left-6 z-40 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-black/60 hover:bg-black/80 backdrop-blur-xl border border-purple-500/40 hover:border-purple-500/80 flex items-center justify-center text-[#d946ef] hover:text-[#f0abfc] shadow-[0_0_20px_rgba(217,70,239,0.35)] transition-all transform active:scale-90 cursor-pointer"
+        className="fixed bottom-6 left-6 z-40 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-purple-500/40 hover:border-purple-400 flex items-center justify-center text-[#d946ef] hover:text-[#f0abfc] shadow-[0_0_20px_rgba(217,70,239,0.35)] hover:shadow-[0_0_30px_rgba(217,70,239,0.6)] hover:scale-110 transition-all duration-300 ease-out active:scale-95 cursor-pointer"
         title={isPlayingMusic ? 'Tắt nhạc' : 'Bật nhạc'}
       >
         {isPlayingMusic ? (
-          <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+          <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2] animate-pulse" />
         ) : (
           <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2] opacity-60" />
         )}
@@ -379,7 +381,7 @@ export default function App() {
 
       {/* Toast Feedback */}
       {toast && (
-        <div className="fixed bottom-6 left-20 z-50 flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-2xl shadow-2xl font-semibold text-xs animate-in slide-in-from-bottom duration-200">
+        <div className="fixed bottom-6 left-24 z-50 flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.5)] font-semibold text-xs animate-in slide-in-from-bottom duration-200">
           <CheckCircle2 className="w-4 h-4" />
           <span>{toast.message}</span>
         </div>
@@ -398,7 +400,7 @@ export default function App() {
         ) : apps.length === 0 ? (
           <div className="py-20 text-center">
             <div className="max-w-md mx-auto space-y-3">
-              <div className="w-16 h-16 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center mx-auto shadow-inner">
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center mx-auto shadow-inner hover:scale-105 transition-transform">
                 <FolderOpen className="w-8 h-8" />
               </div>
               <h2 className="text-xl font-bold text-white tracking-tight">
@@ -431,34 +433,39 @@ export default function App() {
           onUpdateSocials={(newSocials) => setSocials(newSocials)}
         />
 
-        {/* Contact info bar */}
-        <div className="pb-14 pt-2 flex flex-row flex-wrap items-center justify-center gap-4 sm:gap-8 md:gap-10 text-xs sm:text-sm font-mono tracking-wider text-slate-300 select-text">
+        {/* CÁC NÚT LIÊN HỆ DƯỚI CÙNG (CÓ HIỆU ỨNG HOVER NỔI BẬT) */}
+        <div className="pb-14 pt-4 flex flex-row flex-wrap items-center justify-center gap-3 sm:gap-5 text-xs sm:text-sm font-mono tracking-wider text-slate-300">
+          
+          {/* Telegram */}
           <div
             onClick={() => handleCopyText('hoanganhhentai', 'Telegram')}
-            className="hover:text-cyan-400 transition-colors cursor-pointer flex items-center gap-1.5"
-            title="Nhấp để sao chép Telegram: hoanganhhentai"
+            className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-cyan-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(34,211,238,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
+            title="Nhấp để sao chép Telegram"
           >
-            <span className="font-bold text-slate-400">TELEGRAM:</span>
-            <span className="text-slate-200 hover:underline">hoanganhhentai</span>
+            <span className="font-bold text-slate-400 group-hover:text-cyan-400 transition-colors">TELEGRAM:</span>
+            <span className="text-slate-200 group-hover:text-white transition-colors">hoanganhhentai</span>
           </div>
-          <span className="text-slate-600 hidden sm:inline select-none">•</span>
+          
+          {/* Discord */}
           <div
             onClick={() => handleCopyText('hoanganhkute304', 'Discord')}
-            className="hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1.5"
-            title="Nhấp để sao chép Discord: hoanganhkute304"
+            className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-indigo-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
+            title="Nhấp để sao chép Discord"
           >
-            <span className="font-bold text-slate-400">DISCORD:</span>
-            <span className="text-slate-200 hover:underline">hoanganhkute304</span>
+            <span className="font-bold text-slate-400 group-hover:text-indigo-400 transition-colors">DISCORD:</span>
+            <span className="text-slate-200 group-hover:text-white transition-colors">hoanganhkute304</span>
           </div>
-          <span className="text-slate-600 hidden sm:inline select-none">•</span>
+          
+          {/* Gmail */}
           <div
             onClick={() => handleCopyText('hoanganh3042003@gmail.com', 'Gmail')}
-            className="hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1.5"
-            title="Nhấp để sao chép Gmail: hoanganh3042003@gmail.com"
+            className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-rose-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(244,63,94,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
+            title="Nhấp để sao chép Gmail"
           >
-            <span className="font-bold text-slate-400">GMAIL:</span>
-            <span className="text-slate-200 hover:underline">hoanganh3042003@gmail.com</span>
+            <span className="font-bold text-slate-400 group-hover:text-rose-400 transition-colors">GMAIL:</span>
+            <span className="text-slate-200 group-hover:text-white transition-colors">hoanganh3042003@gmail.com</span>
           </div>
+
         </div>
       </main>
 

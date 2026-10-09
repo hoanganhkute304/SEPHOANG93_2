@@ -160,39 +160,34 @@ async function startServer() {
     res.json({ success: true, data: stats });
   });
 
-  // 4. Download file direct (Fixed 404 handler)
+// 4. Download file direct: Luôn ưu tiên gửi file thật từ thư mục uploads
   app.get('/api/apps/:id/download-file', (req, res) => {
     const { id } = req.params;
     const db = readDb();
     const appItem = db.apps.find((a) => a.id === id);
-    if (!appItem) {
-      return res.status(404).send('Không tìm thấy ứng dụng');
-    }
 
-    appItem.downloadsCount = (appItem.downloadsCount || 0) + 1;
-    writeDb(db);
+    // Tên file cần tải (mặc định Mic93.exe nếu không tìm thấy)
+    const downloadFileName = appItem?.filename || 'Mic93.exe';
 
-    let rawFileName = appItem.downloadUrl.startsWith('/uploads/')
-      ? path.basename(appItem.downloadUrl)
-      : appItem.filename || `${appItem.name}.exe`;
-    let filePath = path.resolve(UPLOADS_DIR, rawFileName);
+    // Đường dẫn tuyệt đối đến file Mic93.exe trên máy chủ Render
+    let filePath = path.resolve(UPLOADS_DIR, downloadFileName);
 
-    // Fallback: Nếu không tìm thấy file theo downloadUrl, tìm file theo app.filename
-    if (!fs.existsSync(filePath) && appItem.filename) {
-      const fallbackPath = path.resolve(UPLOADS_DIR, appItem.filename);
-      if (fs.existsSync(fallbackPath)) {
-        filePath = fallbackPath;
+    // Nếu không thấy đúng tên, quét tìm file .exe bất kỳ đang có trong thư mục uploads
+    if (!fs.existsSync(filePath)) {
+      const files = fs.readdirSync(UPLOADS_DIR);
+      const exeFile = files.find((f) => f.toLowerCase().endsWith('.exe'));
+      if (exeFile) {
+        filePath = path.resolve(UPLOADS_DIR, exeFile);
       }
     }
 
-    // Nếu vẫn chưa có file trong uploads, tạo file giả lập để tải không bị lỗi 404
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, Buffer.from('MIC93_WINDOWS_EXECUTABLE_PACKAGE'));
+      return res.status(404).send('Không tìm thấy file trên máy chủ');
     }
 
     res.setHeader('Content-Type', 'application/vnd.microsoft.portable-executable');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(appItem.filename || rawFileName)}"`);
-    return res.download(filePath, appItem.filename || rawFileName);
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+    return res.sendFile(filePath);
   });
 
   // 5. Increment download count

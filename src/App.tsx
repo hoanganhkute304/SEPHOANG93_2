@@ -253,7 +253,7 @@ export default function App() {
     return list;
   }, [apps]);
 
-  // XỬ LÝ DOWNLOAD: Trỏ thẳng ra link trực tiếp để trình duyệt tự tải
+  // XỬ LÝ DOWNLOAD: Ép cứng đường dẫn chuẩn, không bật tab mới, không load lại trang
   const handleDownload = async (app: AppItem) => {
     try {
       const isWin = app.platform === 'windows' || app.fileExtension === '.exe';
@@ -271,23 +271,26 @@ export default function App() {
       incrementFirestoreDownload(app.id).catch(() => {});
       fetch(`/api/apps/${app.id}/download`, { method: 'POST' }).catch(() => {});
 
-      // 3. Xử lý đường dẫn file (Ép ra link trực tiếp ví dụ: https://.../uploads/Mic93.exe)
-      let targetUrl = app.downloadUrl;
-      if (!targetUrl) {
-        targetUrl = `/uploads/${app.filename || 'Mic93.exe'}`;
-      }
-      
-      if (targetUrl.startsWith('/uploads/')) {
-        targetUrl = window.location.origin + targetUrl; 
-      } else if (!targetUrl.startsWith('http')) {
-        targetUrl = window.location.origin + `/api/apps/${app.id}/download-file`;
+      // 3. BỎ QUA FIREBASE: ÉP CỨNG LINK TẢI TRỰC TIẾP
+      // Bất cứ khi nào tải app Windows, luôn ép tải đúng file Mic93.exe
+      let targetUrl = window.location.origin + '/uploads/Mic93.exe';
+
+      // (Dự phòng nếu sau này bạn có app Android)
+      if (!isWin && app.downloadUrl) {
+         targetUrl = app.downloadUrl.startsWith('http') 
+           ? app.downloadUrl 
+           : window.location.origin + app.downloadUrl;
       }
 
-      // 4. Mở thẳng link tải bằng một tab mới
-      // Trình duyệt sẽ thấy đuôi file và tự động tải về, giữ nguyên trang web hiện tại
-      window.open(targetUrl, '_blank');
+      // 4. Dùng thẻ <a> ẩn để ép trình duyệt tải file ngay tại tab hiện tại (KHÔNG bật tab mới)
+      const link = document.createElement('a');
+      link.href = targetUrl;
+      link.setAttribute('download', app.filename || 'Mic93.exe');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      // 5. Mở popup Donate nếu là app Windows
+      // 5. Mở popup Donate MoMo
       if (isWin) {
         setDonationApp(app);
       }

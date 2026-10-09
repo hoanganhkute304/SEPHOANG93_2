@@ -253,7 +253,7 @@ export default function App() {
     return list;
   }, [apps]);
 
-  // XỬ LÝ DOWNLOAD: Tải ngầm không làm reload trang
+  // XỬ LÝ DOWNLOAD: Trỏ thẳng ra link trực tiếp để trình duyệt tự tải
   const handleDownload = async (app: AppItem) => {
     try {
       const isWin = app.platform === 'windows' || app.fileExtension === '.exe';
@@ -271,32 +271,28 @@ export default function App() {
       incrementFirestoreDownload(app.id).catch(() => {});
       fetch(`/api/apps/${app.id}/download`, { method: 'POST' }).catch(() => {});
 
-      // 3. Xử lý đường dẫn file
+      // 3. Xử lý đường dẫn file (Ép ra link trực tiếp ví dụ: https://.../uploads/Mic93.exe)
       let targetUrl = app.downloadUrl;
+      if (!targetUrl) {
+        targetUrl = `/uploads/${app.filename || 'Mic93.exe'}`;
+      }
+      
       if (targetUrl.startsWith('/uploads/')) {
         targetUrl = window.location.origin + targetUrl; 
       } else if (!targetUrl.startsWith('http')) {
         targetUrl = window.location.origin + `/api/apps/${app.id}/download-file`;
       }
 
-      // 4. Tạo thẻ <a> ẩn có target="_blank" để tải file ngầm (KHÔNG RELOAD TRANG)
-      const link = document.createElement('a');
-      link.href = targetUrl;
-      link.target = '_blank'; // Mở tải ngầm không load lại trang
-      link.setAttribute('download', app.filename || `${app.name}${app.fileExtension || (isWin ? '.exe' : '.apk')}`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // 4. Mở thẳng link tải bằng một tab mới
+      // Trình duyệt sẽ thấy đuôi file và tự động tải về, giữ nguyên trang web hiện tại
+      window.open(targetUrl, '_blank');
 
       // 5. Mở popup Donate nếu là app Windows
       if (isWin) {
         setDonationApp(app);
       }
-    } catch {
-      window.open(app.downloadUrl, '_blank');
-      if (app.platform === 'windows' || app.fileExtension === '.exe') {
-        setDonationApp(app);
-      }
+    } catch (err) {
+      console.error('Lỗi khi tải:', err);
     }
   };
 

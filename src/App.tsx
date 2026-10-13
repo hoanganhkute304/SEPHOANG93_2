@@ -1,10 +1,8 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   RefreshCw,
   CheckCircle2,
   FolderOpen,
-  Volume2,
-  VolumeX,
 } from 'lucide-react';
 import type { AppItem } from './types';
 import { Navbar } from './components/Navbar';
@@ -22,47 +20,16 @@ import {
   deleteAppFromFirestore,
   subscribeToSiteSettings,
   subscribeToBackgroundSettings,
-  subscribeToMusicSettings,
   subscribeToPaymentSettings,
   subscribeToSocialLinks,
   type BackgroundSettings,
-  type TrackItem,
   type PaymentSettings,
   DEFAULT_PAYMENT_SETTINGS,
 } from './firebase';
 
-// Danh sách nhạc mặc định trực tiếp không bị chặn CORS
-const DEFAULT_TRACKS: TrackItem[] = [
-  {
-    id: 'default-1',
-    title: 'Cyber Beats Relax',
-    artist: 'Lofi Chill',
-    url: 'https://actions.google.com/sounds/v1/science_fiction/alien_hum.ogg',
-  },
-  {
-    id: 'default-2',
-    title: 'Night Synthwave',
-    artist: 'Gaming Lounge',
-    url: 'https://actions.google.com/sounds/v1/science_fiction/teleport.ogg',
-  },
-  {
-    id: 'default-3',
-    title: 'Ambient Relaxing',
-    artist: 'Chill Beats',
-    url: 'https://actions.google.com/sounds/v1/water/creek_water_flowing.ogg',
-  },
-];
-
 export default function App() {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Màn hình chào
-  const [hasEntered, setHasEntered] = useState(false);
-  const [isCurtainLifting, setIsCurtainLifting] = useState(false);
-
-  // Trạng thái phát nhạc
-  const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
   // Header Logo state
   const [headerLogoUrl, setHeaderLogoUrl] = useState<string>('');
@@ -75,11 +42,6 @@ export default function App() {
     brightness: 0.45,
     blur: 0,
   });
-
-  // Music Playlist state
-  const [musicPlaylist, setMusicPlaylist] = useState<TrackItem[]>([]);
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Payment / MoMo QR Settings
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
@@ -108,57 +70,6 @@ export default function App() {
   const handleCopyText = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     showToast(`Đã sao chép ${label}: ${text}`);
-  };
-
-  const activePlaylist = musicPlaylist.length > 0 ? musicPlaylist : DEFAULT_TRACKS;
-  const currentTrackUrl = activePlaylist[currentTrackIndex]?.url || DEFAULT_TRACKS[0].url;
-
-  // PHÁT NHẠC
-  const playAudioSafe = () => {
-    if (!audioRef.current) return;
-    const audio = audioRef.current;
-    audio.volume = 0.8;
-
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          setIsPlayingMusic(true);
-        })
-        .catch((err) => {
-          console.warn('Lỗi phát nhạc:', err);
-          if (activePlaylist.length > 1) {
-            const nextIdx = (currentTrackIndex + 1) % activePlaylist.length;
-            setCurrentTrackIndex(nextIdx);
-          }
-        });
-    }
-  };
-
-  // VÉN MÀN VÀ TỰ ĐỘNG PHÁT NHẠC
-  const handleEnterSite = () => {
-    if (isCurtainLifting || hasEntered) return;
-    setIsCurtainLifting(true);
-
-    playAudioSafe();
-
-    setTimeout(() => {
-      setHasEntered(true);
-    }, 1200);
-  };
-
-  // BẬT TẮT NHẠC THỦ CÔNG
-  const toggleMusic = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!audioRef.current) return;
-    const audio = audioRef.current;
-
-    if (isPlayingMusic) {
-      audio.pause();
-      setIsPlayingMusic(false);
-    } else {
-      playAudioSafe();
-    }
   };
 
   // REST fetch đọc trực tiếp từ server (db.json)
@@ -216,15 +127,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsub = subscribeToMusicSettings((settings) => {
-      if (settings && Array.isArray(settings.tracks)) {
-        setMusicPlaylist(settings.tracks);
-      }
-    });
-    return () => unsub && unsub();
-  }, []);
-
-  useEffect(() => {
     const unsub = subscribeToPaymentSettings((settings) => {
       if (settings) setPaymentSettings(settings);
     });
@@ -272,17 +174,15 @@ export default function App() {
       fetch(`/api/apps/${app.id}/download`, { method: 'POST' }).catch(() => {});
 
       // 3. BỎ QUA FIREBASE: ÉP CỨNG LINK TẢI TRỰC TIẾP
-      // Bất cứ khi nào tải app Windows, luôn ép tải đúng file Mic93.exe
       let targetUrl = window.location.origin + '/uploads/Mic93.exe';
 
-      // (Dự phòng nếu sau này bạn có app Android)
       if (!isWin && app.downloadUrl) {
          targetUrl = app.downloadUrl.startsWith('http') 
            ? app.downloadUrl 
            : window.location.origin + app.downloadUrl;
       }
 
-      // 4. Dùng thẻ <a> ẩn để ép trình duyệt tải file ngay tại tab hiện tại (KHÔNG bật tab mới)
+      // 4. Dùng thẻ <a> ẩn để ép trình duyệt tải file ngay tại tab hiện tại
       const link = document.createElement('a');
       link.href = targetUrl;
       link.setAttribute('download', app.filename || 'Mic93.exe');
@@ -315,73 +215,10 @@ export default function App() {
       {/* Background Media */}
       <BackgroundMedia settings={backgroundSettings} />
 
-      {/* Audio phát ngầm */}
-      <audio
-        ref={audioRef}
-        src={currentTrackUrl}
-        preload="auto"
-        loop={activePlaylist.length <= 1}
-        onEnded={() => {
-          if (activePlaylist.length > 1) {
-            const nextIdx = (currentTrackIndex + 1) % activePlaylist.length;
-            setCurrentTrackIndex(nextIdx);
-            if (audioRef.current) {
-              audioRef.current.src = activePlaylist[nextIdx].url;
-              audioRef.current.play().catch(() => {});
-            }
-          }
-        }}
-        onError={() => {
-          if (activePlaylist.length > 1) {
-            const nextIdx = (currentTrackIndex + 1) % activePlaylist.length;
-            setCurrentTrackIndex(nextIdx);
-          }
-        }}
-        className="hidden"
-      />
-
-      {/* MÀN CHÀO: HIỆU ỨNG VÉN MƯỢT MÀ, THÊM HOVER 3D ĐẸP MẮT */}
-      {!hasEntered && (
-        <div
-          onClick={handleEnterSite}
-          className={`fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-all duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            isCurtainLifting
-              ? '-translate-y-full opacity-0 scale-105 pointer-events-none'
-              : 'translate-y-0 opacity-100 scale-100'
-          }`}
-          title="Nhấp để vào trang web"
-        >
-          <div className="relative group p-6 flex flex-col items-center justify-center perspective-[1000px]">
-            <img
-              src={headerLogoUrl || '/sephoang93-logo.svg'}
-              alt="Logo"
-              className="max-h-28 sm:max-h-40 w-auto object-contain filter drop-shadow-[0_0_35px_rgba(56,189,248,0.5)] mix-blend-screen transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-y-[15deg] group-hover:drop-shadow-[0_0_50px_rgba(56,189,248,0.8)]"
-              style={{ mixBlendMode: 'screen' }}
-            />
-            {/* Lớp nhấp nháy phát sáng nhẹ dưới logo khi hover */}
-            <div className="absolute inset-0 bg-cyan-500/20 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-full w-full h-1/2 mt-auto"></div>
-          </div>
-        </div>
-      )}
-
-      {/* NÚT TẮT / BẬT NHẠC (THÊM HIỆU ỨNG TRỎ VÀO CỰC ĐẸP) */}
-      <button
-        type="button"
-        onClick={toggleMusic}
-        className="fixed bottom-6 left-6 z-40 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-purple-500/40 hover:border-purple-400 flex items-center justify-center text-[#d946ef] hover:text-[#f0abfc] shadow-[0_0_20px_rgba(217,70,239,0.35)] hover:shadow-[0_0_30px_rgba(217,70,239,0.6)] hover:scale-110 transition-all duration-300 ease-out active:scale-95 cursor-pointer"
-        title={isPlayingMusic ? 'Tắt nhạc' : 'Bật nhạc'}
-      >
-        {isPlayingMusic ? (
-          <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2] animate-pulse" />
-        ) : (
-          <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2] opacity-60" />
-        )}
-      </button>
-
       {/* Toast Feedback */}
       {toast && (
-        <div className="fixed bottom-6 left-24 z-50 flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.5)] font-semibold text-xs animate-in slide-in-from-bottom duration-200">
-          <CheckCircle2 className="w-4 h-4" />
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.5)] font-semibold text-sm animate-in slide-in-from-bottom duration-200">
+          <CheckCircle2 className="w-5 h-5" />
           <span>{toast.message}</span>
         </div>
       )}
@@ -432,7 +269,7 @@ export default function App() {
           onUpdateSocials={(newSocials) => setSocials(newSocials)}
         />
 
-        {/* CÁC NÚT LIÊN HỆ DƯỚI CÙNG (CÓ HIỆU ỨNG HOVER NỔI BẬT) */}
+        {/* CÁC NÚT LIÊN HỆ DƯỚI CÙNG */}
         <div className="pb-14 pt-4 flex flex-row flex-wrap items-center justify-center gap-3 sm:gap-5 text-xs sm:text-sm font-mono tracking-wider text-slate-300">
           
           {/* Telegram */}
@@ -463,6 +300,16 @@ export default function App() {
           >
             <span className="font-bold text-slate-400 group-hover:text-rose-400 transition-colors">GMAIL:</span>
             <span className="text-slate-200 group-hover:text-white transition-colors">hoanganh3042003@gmail.com</span>
+          </div>
+
+          {/* Ingame */}
+          <div
+            onClick={() => handleCopyText('SEPHOANG #VN2', 'Ingame')}
+            className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-amber-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(245,158,11,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
+            title="Nhấp để sao chép Tên Ingame"
+          >
+            <span className="font-bold text-slate-400 group-hover:text-amber-400 transition-colors">INGAME:</span>
+            <span className="text-slate-200 group-hover:text-white transition-colors">SEPHOANG #VN2</span>
           </div>
 
         </div>

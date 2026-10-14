@@ -1,4 +1,5 @@
 export type PlatformType = 'windows' | 'android' | 'cross';
+export type AppStatusType = 'ready' | 'update' | 'coming';
 
 export interface AppItem {
   id: string;
@@ -17,17 +18,22 @@ export interface AppItem {
   isUploadedFile: boolean;
   filename?: string;
   iconUrl: string;
-  bannerUrl?: string; // Ảnh nền / Cover banner ứng dụng
-  screenshots: string[];
+  bannerUrl?: string; // Ảnh bìa / banner ngang
+  screenshots?: string[];
   downloadsCount: number;
-  rating: number;
-  uploadedBy: string;
+  rating?: number;
+  uploadedBy?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   changelog?: string;
   apkSha256?: string;
   tags?: string[];
   features?: string[];
+
+  // Các trường mới thêm
+  status?: AppStatusType; // 'ready' | 'update' | 'coming'
+  isPinned?: boolean;     // Ghim lên đầu trang
+  sortOrder?: number;     // Thứ tự hiển thị ưu tiên
 }
 
 export interface StatsResponse {

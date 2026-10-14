@@ -1,63 +1,60 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { BackgroundSettings } from '../firebase';
 
-interface BackgroundMediaProps {
-  settings?: BackgroundSettings;
+interface Props {
+  settings: BackgroundSettings;
 }
 
-export const BackgroundMedia: React.FC<BackgroundMediaProps> = ({ settings }) => {
-  const [videoLoaded, setVideoLoaded] = useState(false);
+export const BackgroundMedia: React.FC<Props> = ({ settings }) => {
+  const {
+    mediaType = 'image',
+    videoUrl,
+    imageUrl,
+    brightness = 0.45,
+    blur = 0,
+    positionX = 50,
+    positionY = 50,
+    scale = 1.05,
+    fitMode = 'cover',
+    contrast = 1.1,
+    overlayOpacity = 0.75,
+  } = settings;
 
-  const mediaType = settings?.mediaType || 'video';
-  const customVideoUrl = settings?.videoUrl?.trim();
-  const customImageUrl = settings?.imageUrl?.trim();
-  const brightness = settings?.brightness !== undefined ? settings.brightness : 0.45;
-  const blur = settings?.blur || 0;
-
-  // Default high quality dark cyber ambient video background loop
-  const defaultVideo =
-    'https://assets.mixkit.co/videos/preview/mixkit-circuit-board-with-moving-lights-42526-large.mp4';
-  const activeVideo = customVideoUrl || defaultVideo;
-
-  // Default cyber gaming wallpaper fallback
-  const defaultImage =
-    'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop';
-  const activeImage = customImageUrl || defaultImage;
+  const styleFilter: React.CSSProperties = {
+    filter: `brightness(${brightness}) blur(${blur}px) contrast(${contrast})`,
+    transform: `scale(${scale})`,
+    objectPosition: `${positionX}% ${positionY}%`,
+    objectFit: fitMode,
+  };
 
   return (
-    <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
-      {/* 1. Base Image Layer (luôn sẵn sàng, tải ngay) */}
-      <img
-        src={activeImage}
-        alt="Background"
-        style={{
-          filter: `brightness(${brightness}) contrast(1.2) blur(${blur}px)`,
-        }}
-        className="absolute inset-0 w-full h-full object-cover scale-105 transition-all duration-700"
-      />
-
-      {/* 2. Video Layer (nếu mediaType là 'video') */}
-      {mediaType === 'video' && (
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-slate-950">
+      {mediaType === 'video' && videoUrl ? (
         <video
-          key={activeVideo}
+          src={videoUrl}
           autoPlay
-          loop
           muted
+          loop
           playsInline
-          onCanPlay={() => setVideoLoaded(true)}
-          style={{
-            filter: `brightness(${brightness}) contrast(1.2) blur(${blur}px)`,
-          }}
-          className={`absolute inset-0 w-full h-full object-cover scale-105 transition-opacity duration-1000 ${
-            videoLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <source src={activeVideo} type="video/mp4" />
-        </video>
+          className="w-full h-full transition-all duration-700 ease-out"
+          style={styleFilter}
+        />
+      ) : imageUrl ? (
+        <img
+          src={imageUrl}
+          alt="Site Background"
+          className="w-full h-full transition-all duration-700 ease-out"
+          style={styleFilter}
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/40" />
       )}
 
-      {/* Dark Cinematic Gradient Overlay để đảm bảo nội dung và ứng dụng luôn dễ nhìn */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/70 to-slate-950/95 backdrop-blur-[1px]" />
+      {/* Lớp phủ tối mờ (Overlay) dựa theo overlayOpacity trên Firebase */}
+      <div
+        className="absolute inset-0 bg-slate-950 transition-opacity duration-500"
+        style={{ opacity: overlayOpacity }}
+      />
     </div>
   );
 };

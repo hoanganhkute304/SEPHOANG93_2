@@ -9,8 +9,6 @@ import {
   deleteDoc,
   updateDoc,
   increment,
-  query,
-  orderBy,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import type { AppItem } from './types';
@@ -68,13 +66,12 @@ export async function testConnection(): Promise<boolean> {
       console.error('Vui lòng kiểm tra cấu hình Firebase.');
       return false;
     }
-    // Document might not exist which is fine
     return true;
   }
 }
 testConnection();
 
-// Real-time listener for Apps collection
+// Real-time listener for Apps collection (Hỗ trợ isPinned, sortOrder, status)
 export function subscribeToApps(
   callback: (apps: AppItem[]) => void,
   onError?: (err: Error) => void
@@ -87,13 +84,28 @@ export function subscribeToApps(
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() as AppItem;
         const count = typeof data.downloadsCount === 'number' ? Math.max(8, data.downloadsCount) : 8;
-        items.push({ ...data, id: docSnap.id, downloadsCount: count });
+        items.push({
+          ...data,
+          id: docSnap.id,
+          downloadsCount: count,
+          status: data.status || 'ready',
+          isPinned: !!data.isPinned,
+          sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : 9999,
+        });
       });
-      // Sort newest first
-      items.sort(
-        (a, b) =>
-          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      );
+
+      // Sắp xếp: Ghim lên đầu -> sortOrder tăng dần -> ngày tạo mới nhất
+      items.sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+
+        const orderA = typeof a.sortOrder === 'number' ? a.sortOrder : 9999;
+        const orderB = typeof b.sortOrder === 'number' ? b.sortOrder : 9999;
+        if (orderA !== orderB) return orderA - orderB;
+
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+
       callback(items);
     },
     (error) => {
@@ -110,6 +122,9 @@ export async function saveAppToFirestore(appItem: AppItem): Promise<void> {
   try {
     await setDoc(doc(db, 'apps', appItem.id), {
       ...appItem,
+      status: appItem.status || 'ready',
+      isPinned: !!appItem.isPinned,
+      sortOrder: typeof appItem.sortOrder === 'number' ? appItem.sortOrder : 9999,
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -117,7 +132,7 @@ export async function saveAppToFirestore(appItem: AppItem): Promise<void> {
   }
 }
 
-// Update app in Firestore (for Admin Mod)
+// Update app in Firestore
 export async function updateAppInFirestore(
   appId: string,
   updates: Partial<AppItem>
@@ -176,37 +191,25 @@ export function subscribeToSiteSettings(
   );
 }
 
-export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
-  const path = 'settings/branding';
-  try {
-    await setDoc(doc(db, 'settings', 'branding'), {
-      headerLogoUrl: logoUrl,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
+// Social Links subscription (Hỗ trợ thêm Facebook)
+export interface SocialSettings {
+  discord?: string;
+  tiktok?: string;
+  youtube?: string;
+  telegram?: string;
+  instagram?: string;
+  facebook?: string;
 }
 
-export async function deleteSiteLogoFromFirestore(): Promise<void> {
-  const path = 'settings/branding';
-  try {
-    await deleteDoc(doc(db, 'settings', 'branding'));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
-  }
-}
-
-// Social Links subscription
 export function subscribeToSocialLinks(
-  callback: (socials: { discord?: string; tiktok?: string; youtube?: string; telegram?: string }) => void
+  callback: (socials: SocialSettings) => void
 ) {
   const docRef = doc(db, 'settings', 'socials');
   return onSnapshot(
     docRef,
     (snap) => {
       if (snap.exists()) {
-        callback(snap.data() as any);
+        callback(snap.data() as SocialSettings);
       } else {
         callback({});
       }
@@ -217,14 +220,34 @@ export function subscribeToSocialLinks(
   );
 }
 
-// Background Media Settings (Image & Video)
+// Background Media Settings (Bổ sung đầy đủ 11 trường canh chỉnh mới)
 export interface BackgroundSettings {
   mediaType: 'video' | 'image';
   videoUrl?: string;
   imageUrl?: string;
-  brightness?: number;
-  blur?: number;
+  brightness?: number;      // 0.1 - 1.0 (mặc định 0.45)
+  blur?: number;            // 0 - 20 (px, mặc định 0)
+  positionX?: number;       // 0 - 100 (% trục ngang, mặc định 50)
+  positionY?: number;       // 0 - 100 (% trục dọc, mặc định 50)
+  scale?: number;           // 1.0 - 2.0 (mặc định 1.05)
+  fitMode?: 'cover' | 'contain'; // mặc định 'cover'
+  contrast?: number;        // 0.7 - 1.6 (mặc định 1.1)
+  overlayOpacity?: number;  // 0.2 - 0.95 (mặc định 0.75)
 }
+
+export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
+  mediaType: 'image',
+  videoUrl: '',
+  imageUrl: '',
+  brightness: 0.45,
+  blur: 0,
+  positionX: 50,
+  positionY: 50,
+  scale: 1.05,
+  fitMode: 'cover',
+  contrast: 1.1,
+  overlayOpacity: 0.75,
+};
 
 export function subscribeToBackgroundSettings(
   callback: (settings: BackgroundSettings) => void
@@ -234,42 +257,23 @@ export function subscribeToBackgroundSettings(
     docRef,
     (snap) => {
       if (snap.exists()) {
-        callback(snap.data() as BackgroundSettings);
+        callback({ ...DEFAULT_BACKGROUND_SETTINGS, ...(snap.data() as BackgroundSettings) });
       } else {
         fetch('/api/settings/background')
           .then((r) => r.json())
           .then((res) => {
             if (res.success && res.data) {
-              callback(res.data);
+              callback({ ...DEFAULT_BACKGROUND_SETTINGS, ...res.data });
             } else {
-              callback({
-                mediaType: 'video',
-                videoUrl: '',
-                imageUrl: '',
-                brightness: 0.45,
-                blur: 0,
-              });
+              callback(DEFAULT_BACKGROUND_SETTINGS);
             }
           })
-          .catch(() => {
-            callback({
-              mediaType: 'video',
-              videoUrl: '',
-              imageUrl: '',
-              brightness: 0.45,
-              blur: 0,
-            });
-          });
+          .catch(() => callback(DEFAULT_BACKGROUND_SETTINGS));
       }
     },
     (err) => {
       console.warn('Background settings subscription error:', err);
-      fetch('/api/settings/background')
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.success && res.data) callback(res.data);
-        })
-        .catch(() => {});
+      callback(DEFAULT_BACKGROUND_SETTINGS);
     }
   );
 }
@@ -286,85 +290,7 @@ export async function saveBackgroundSettings(settings: BackgroundSettings): Prom
   }
 }
 
-export async function deleteBackgroundSettings(): Promise<void> {
-  const path = 'settings/background';
-  try {
-    await deleteDoc(doc(db, 'settings', 'background'));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
-  }
-}
-
-// Background Music Playlist Settings
-export interface TrackItem {
-  id: string;
-  title: string;
-  artist: string;
-  url: string;
-}
-
-export interface MusicSettings {
-  tracks: TrackItem[];
-}
-
-export function subscribeToMusicSettings(
-  callback: (settings: MusicSettings) => void
-) {
-  const docRef = doc(db, 'settings', 'music');
-  return onSnapshot(
-    docRef,
-    (snap) => {
-      if (snap.exists()) {
-        callback(snap.data() as MusicSettings);
-      } else {
-        fetch('/api/settings/music')
-          .then((r) => r.json())
-          .then((res) => {
-            if (res.success && res.data && Array.isArray(res.data.tracks)) {
-              callback(res.data);
-            } else {
-              callback({ tracks: [] });
-            }
-          })
-          .catch(() => callback({ tracks: [] }));
-      }
-    },
-    (err) => {
-      console.warn('Music settings subscription error:', err);
-      fetch('/api/settings/music')
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.success && res.data && Array.isArray(res.data.tracks)) {
-            callback(res.data);
-          }
-        })
-        .catch(() => {});
-    }
-  );
-}
-
-export async function saveMusicSettings(settings: MusicSettings): Promise<void> {
-  const path = 'settings/music';
-  try {
-    await setDoc(doc(db, 'settings', 'music'), {
-      ...settings,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
-}
-
-export async function deleteMusicSettings(): Promise<void> {
-  const path = 'settings/music';
-  try {
-    await deleteDoc(doc(db, 'settings', 'music'));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
-  }
-}
-
-// Payment / MoMo & PayPal Settings (Khi ấn tải EXE hiện QR MoMo & PayPal)
+// Payment / MoMo Settings
 export interface PaymentSettings {
   momoQrUrl?: string;
   momoPhone?: string;
@@ -397,16 +323,7 @@ export function subscribeToPaymentSettings(
       if (snap.exists()) {
         callback({ ...DEFAULT_PAYMENT_SETTINGS, ...(snap.data() as PaymentSettings) });
       } else {
-        fetch('/api/settings/payment')
-          .then((r) => r.json())
-          .then((res) => {
-            if (res.success && res.data) {
-              callback({ ...DEFAULT_PAYMENT_SETTINGS, ...res.data });
-            } else {
-              callback(DEFAULT_PAYMENT_SETTINGS);
-            }
-          })
-          .catch(() => callback(DEFAULT_PAYMENT_SETTINGS));
+        callback(DEFAULT_PAYMENT_SETTINGS);
       }
     },
     (err) => {
@@ -427,51 +344,3 @@ export async function savePaymentSettings(settings: PaymentSettings): Promise<vo
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
-
-// Author Contact Information (Dưới cùng bên phải có thể Copy)
-export interface AuthorInfoSettings {
-  name: string;
-  email: string;
-  bio?: string;
-  phone?: string;
-}
-
-export const DEFAULT_AUTHOR_INFO: AuthorInfoSettings = {
-  name: 'SEPHOANG 93',
-  email: 'kute123kuto123@gmail.com',
-  bio: 'Nhà sáng tạo / Developer',
-  phone: '0987.654.321',
-};
-
-export function subscribeToAuthorSettings(
-  callback: (info: AuthorInfoSettings) => void
-) {
-  const docRef = doc(db, 'settings', 'author');
-  return onSnapshot(
-    docRef,
-    (snap) => {
-      if (snap.exists()) {
-        callback({ ...DEFAULT_AUTHOR_INFO, ...(snap.data() as AuthorInfoSettings) });
-      } else {
-        callback(DEFAULT_AUTHOR_INFO);
-      }
-    },
-    (err) => {
-      console.warn('Author settings subscription error:', err);
-      callback(DEFAULT_AUTHOR_INFO);
-    }
-  );
-}
-
-export async function saveAuthorSettings(info: AuthorInfoSettings): Promise<void> {
-  const path = 'settings/author';
-  try {
-    await setDoc(doc(db, 'settings', 'author'), {
-      ...info,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
-}
-

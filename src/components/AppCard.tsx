@@ -4,11 +4,12 @@ import {
   QrCode,
   Smartphone,
   Monitor,
-  Star,
   CheckCircle2,
   Trash2,
   AlertTriangle,
   Edit3,
+  Clock,
+  Pin,
 } from 'lucide-react';
 import type { AppItem } from '../types';
 
@@ -38,8 +39,8 @@ export const AppCard: React.FC<AppCardProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const isWindows = app.platform === 'windows' || app.fileExtension === '.exe';
+  const status = app.status || 'ready';
 
-  // Lượt tải mặc định bằng 8 nếu chưa có hoặc nhỏ hơn 8, tăng dần khi tải thêm
   const effectiveDownloads =
     typeof app.downloadsCount === 'number' && app.downloadsCount >= 8
       ? app.downloadsCount
@@ -47,12 +48,16 @@ export const AppCard: React.FC<AppCardProps> = ({
 
   const handleDownloadClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsDownloading(true);
 
-    // Call main download logic (tăng lượt tải, bắt đầu tải file)
+    // Khóa tải khi đang trạng thái Coming hoặc Update
+    if (status === 'coming' || status === 'update') {
+      onDownload(app);
+      return;
+    }
+
+    setIsDownloading(true);
     onDownload(app);
 
-    // Khi ấn tải EXE thì hiện thêm bảng QR MoMo và PayPal
     if (isWindows && onOpenDonation) {
       onOpenDonation(app);
     }
@@ -96,6 +101,14 @@ export const AppCard: React.FC<AppCardProps> = ({
         isAdminMod ? 'ring-1 ring-amber-500/40' : 'ring-1 ring-white/5 hover:ring-blue-500/30'
       }`}
     >
+      {/* Huy hiệu Ghim lên đầu */}
+      {app.isPinned && (
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[11px] font-bold shadow-[0_0_12px_rgba(59,130,246,0.3)] backdrop-blur-md">
+          <Pin className="w-3 h-3 fill-current" />
+          <span>Ghim</span>
+        </div>
+      )}
+
       {/* Confirmation Overlay for Delete */}
       {showConfirmDelete && (
         <div
@@ -105,9 +118,7 @@ export const AppCard: React.FC<AppCardProps> = ({
           <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-400 flex items-center justify-center mb-3">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h4 className="text-sm font-bold text-white mb-1">
-            Xác nhận xóa ứng dụng?
-          </h4>
+          <h4 className="text-sm font-bold text-white mb-1">Xác nhận xóa ứng dụng?</h4>
           <p className="text-xs text-slate-400 mb-4 max-w-xs">
             Hành động này sẽ xóa vĩnh viễn <b>{app.name}</b> khỏi Firebase.
           </p>
@@ -131,7 +142,7 @@ export const AppCard: React.FC<AppCardProps> = ({
         </div>
       )}
 
-      {/* Optional Background Banner / Cover Image */}
+      {/* Optional Background Banner */}
       {app.bannerUrl ? (
         <div className="relative h-28 w-full overflow-hidden bg-slate-950">
           <img
@@ -141,7 +152,6 @@ export const AppCard: React.FC<AppCardProps> = ({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent"></div>
 
-          {/* Quick Edit Banner button in Admin Mode */}
           {isAdminMod && (
             <button
               type="button"
@@ -149,7 +159,7 @@ export const AppCard: React.FC<AppCardProps> = ({
               className="absolute top-2 right-2 z-10 text-[10px] bg-slate-950/80 hover:bg-slate-900 text-amber-300 px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1 transition-colors cursor-pointer"
             >
               <Edit3 className="w-3 h-3" />
-              <span>Sửa Ảnh Nền</span>
+              <span>Sửa Banner</span>
             </button>
           )}
         </div>
@@ -158,7 +168,6 @@ export const AppCard: React.FC<AppCardProps> = ({
       <div className={`p-5 ${app.bannerUrl ? '-mt-8 relative z-10' : ''}`}>
         {/* Top bar: Icon + Platform Badge + Category */}
         <div className="flex items-start gap-3.5 mb-3">
-          {/* Logo / Icon (KHÔNG nền đen, không viền cứng, hiệu ứng sạch sẽ) */}
           <div className="relative group/icon shrink-0">
             <img
               src={app.iconUrl}
@@ -183,7 +192,7 @@ export const AppCard: React.FC<AppCardProps> = ({
             )}
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pr-12">
             <div className="flex items-center justify-between gap-1 mb-1">
               {isWindows ? (
                 <span className="text-[10px] font-bold tracking-wide text-blue-400 bg-blue-500/15 px-2 py-0.5 rounded-md flex items-center gap-1">
@@ -212,13 +221,10 @@ export const AppCard: React.FC<AppCardProps> = ({
         <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
           {app.description || 'Chưa có mô tả chi tiết.'}
         </p>
-
-        {/* ĐÃ BỎ 2 CÁI NÀY (Bỏ badge Phiên bản và Yêu cầu hệ điều hành theo đúng yêu cầu) */}
       </div>
 
-      {/* Footer: CÁI DUNG LƯỢNG NẰM CHUNG VỚI CÁI LƯỢT TẢI */}
+      {/* Footer: Dung lượng + Lượt tải + Nút hành động */}
       <div className="p-4 bg-slate-950/60 flex items-center justify-between gap-2 mt-2">
-        {/* Dung lượng NẰM CHUNG với Lượt tải (Mặc định bằng 8 và tăng dần) */}
         <div className="text-[11px] text-slate-300 flex items-center gap-2 flex-wrap">
           <span className="font-semibold text-slate-200 bg-slate-900/90 px-2 py-0.5 rounded-lg border border-slate-800">
             {app.fileSize || 'N/A'}
@@ -233,13 +239,13 @@ export const AppCard: React.FC<AppCardProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Admin Mod Actions: Sửa Logo & Xóa */}
+          {/* Admin Mod Actions */}
           {isAdminMod && (
             <>
               <button
                 type="button"
                 onClick={handleEditClick}
-                title="Sửa logo và thông tin ứng dụng"
+                title="Sửa logo và thông tin"
                 className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
@@ -249,7 +255,7 @@ export const AppCard: React.FC<AppCardProps> = ({
               <button
                 type="button"
                 onClick={handleDeleteClick}
-                title="Xóa ứng dụng khỏi hệ thống"
+                title="Xóa ứng dụng"
                 className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
@@ -267,30 +273,52 @@ export const AppCard: React.FC<AppCardProps> = ({
             <QrCode className={`w-4 h-4 ${isWindows ? 'text-blue-400' : 'text-emerald-400'}`} />
           </button>
 
-          {/* Download Button: Khi ấn tải EXE thì hiện thêm bảng QR MoMo và PayPal */}
-          <button
-            type="button"
-            onClick={handleDownloadClick}
-            className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer ${
-              isDownloading
-                ? 'bg-blue-600 text-white'
-                : isWindows
-                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 active:scale-95'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'
-            }`}
-          >
-            {isDownloading ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Đang tải...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>{isWindows ? 'Tải .EXE' : 'Tải .APK'}</span>
-              </>
-            )}
-          </button>
+          {/* Nút trạng thái: Coming | Update | Tải bình thường */}
+          {status === 'coming' ? (
+            <button
+              type="button"
+              onClick={handleDownloadClick}
+              className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl font-bold text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.25)]"
+              title="Ứng dụng sắp ra mắt"
+            >
+              <Clock className="w-3.5 h-3.5 animate-spin" />
+              <span>Coming</span>
+            </button>
+          ) : status === 'update' ? (
+            <button
+              type="button"
+              onClick={handleDownloadClick}
+              className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl font-bold text-xs bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition-all cursor-pointer shadow-[0_0_15px_rgba(244,63,94,0.25)]"
+              title="Đang bảo trì cập nhật"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
+              <span>Update</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleDownloadClick}
+              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer ${
+                isDownloading
+                  ? 'bg-blue-600 text-white'
+                  : isWindows
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 active:scale-95'
+                  : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'
+              }`}
+            >
+              {isDownloading ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Đang tải...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>{isWindows ? 'Tải .EXE' : 'Tải .APK'}</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

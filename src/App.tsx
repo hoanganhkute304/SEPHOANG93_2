@@ -3,6 +3,7 @@ import {
   RefreshCw,
   CheckCircle2,
   FolderOpen,
+  AlertCircle,
 } from 'lucide-react';
 import type { AppItem } from './types';
 import { Navbar } from './components/Navbar';
@@ -34,13 +35,19 @@ export default function App() {
   // Header Logo state
   const [headerLogoUrl, setHeaderLogoUrl] = useState<string>('');
 
-  // Background Settings state
+  // Background Settings state (Nhận trực tiếp từ Firestore)
   const [backgroundSettings, setBackgroundSettings] = useState<BackgroundSettings>({
-    mediaType: 'video',
+    mediaType: 'image',
     videoUrl: '',
     imageUrl: '',
     brightness: 0.45,
     blur: 0,
+    positionX: 50,
+    positionY: 50,
+    scale: 1.05,
+    fitMode: 'cover',
+    contrast: 1.1,
+    overlayOpacity: 0.75,
   });
 
   // Payment / MoMo QR Settings
@@ -49,6 +56,7 @@ export default function App() {
 
   // Social Links state
   const [socials, setSocials] = useState<SocialLinks>({
+    facebook: '',
     discord: 'https://discord.gg',
     tiktok: 'https://tiktok.com',
     youtube: 'https://youtube.com',
@@ -61,8 +69,8 @@ export default function App() {
   const [qrApp, setQrApp] = useState<AppItem | null>(null);
 
   // Toast feedback
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
-  const showToast = (message: string, type: 'success' | 'info' = 'success') => {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
+  const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
@@ -72,8 +80,8 @@ export default function App() {
     showToast(`Đã sao chép ${label}: ${text}`);
   };
 
-  // REST fetch đọc trực tiếp từ server (db.json)
-  const fetchAppsFromApi = async () => {
+  // Hàm dự phòng đọc dữ liệu từ db.json chỉ khi Firebase rỗng hoặc lỗi mạng
+  const fetchAppsFallback = async () => {
     try {
       const res = await fetch('/api/apps');
       const data = await res.json();
@@ -85,82 +93,111 @@ export default function App() {
         setApps(mapped);
       }
     } catch (err) {
-      console.warn('API fetch error:', err);
+      console.warn('API local fetch error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 1. Lắng nghe trực tiếp Firestore (BỎ fetch API trước để không bị nháy giao diện cũ)
   useEffect(() => {
-    fetchAppsFromApi();
     let unsubscribe: (() => void) | undefined;
     try {
       unsubscribe = subscribeToApps(
         (items) => {
           if (items && items.length > 0) {
             setApps(items);
+          } else {
+            fetchAppsFallback();
           }
           setIsLoading(false);
         },
-        () => fetchAppsFromApi()
+        (error) => {
+          console.warn('Lỗi Firestore apps, chuyển sang API local:', error);
+          fetchAppsFallback();
+        }
       );
     } catch {
-      fetchAppsFromApi();
+      fetchAppsFallback();
     }
     return () => {
       if (unsubscribe) unsubscribe();
     };
   }, []);
 
+  // 2. Lắng nghe cấu hình Logo
   useEffect(() => {
     const unsub = subscribeToSiteSettings((settings) => {
-      setHeaderLogoUrl(settings.headerLogoUrl || '');
+      if (settings?.headerLogoUrl) {
+        setHeaderLogoUrl(settings.headerLogoUrl);
+      }
     });
     return () => unsub && unsub();
   }, []);
 
+  // 3. Lắng nghe cấu hình Ảnh/Video nền
   useEffect(() => {
     const unsub = subscribeToBackgroundSettings((settings) => {
-      if (settings) setBackgroundSettings(settings);
+      if (settings) {
+        setBackgroundSettings((prev) => ({ ...prev, ...settings }));
+      }
     });
     return () => unsub && unsub();
   }, []);
 
+  // 4. Lắng nghe cấu hình MoMo
   useEffect(() => {
     const unsub = subscribeToPaymentSettings((settings) => {
-      if (settings) setPaymentSettings(settings);
+      if (settings) {
+        setPaymentSettings(settings);
+      }
     });
     return () => unsub && unsub();
   }, []);
 
+  // 5. Lắng nghe liên kết mạng xã hội
   useEffect(() => {
     const unsub = subscribeToSocialLinks((data) => {
       if (data && Object.keys(data).length > 0) {
         setSocials((prev) => ({
-          discord: data.discord || prev.discord,
-          tiktok: data.tiktok || prev.tiktok,
-          youtube: data.youtube || prev.youtube,
-          instagram: (data as any).instagram || (data as any).telegram || prev.instagram,
+          ...prev,
+          ...data,
         }));
       }
     });
     return () => unsub && unsub();
   }, []);
 
+  // Sắp xếp: Ghim lên đầu -> sortOrder tăng dần -> ngày tạo mới nhất
   const sortedApps = useMemo(() => {
     const list = [...apps];
-    list.sort(
-      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
+    list.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+
+      const orderA = typeof a.sortOrder === 'number' ? a.sortOrder : 9999;
+      const orderB = typeof b.sortOrder === 'number' ? b.sortOrder : 9999;
+      if (orderA !== orderB) return orderA - orderB;
+
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
     return list;
   }, [apps]);
 
-  // XỬ LÝ DOWNLOAD: Ép cứng đường dẫn chuẩn, không bật tab mới, không load lại trang
+  // Xử lý nút tải
   const handleDownload = async (app: AppItem) => {
     try {
+      if (app.status === 'update') {
+        showToast(`Ứng dụng "${app.name}" đang bảo trì cập nhật!`, 'warning');
+        return;
+      }
+      if (app.status === 'coming') {
+        showToast(`Ứng dụng "${app.name}" sắp ra mắt, vui lòng quay lại sau!`, 'info');
+        return;
+      }
+
       const isWin = app.platform === 'windows' || app.fileExtension === '.exe';
-      
-      // 1. Tăng số lượt tải ảo trên UI ngay lập tức
+
       setApps((prev) =>
         prev.map((item) =>
           item.id === app.id
@@ -168,34 +205,27 @@ export default function App() {
             : item
         )
       );
-      
-      // 2. Gửi API đếm lượt tải
+
       incrementFirestoreDownload(app.id).catch(() => {});
       fetch(`/api/apps/${app.id}/download`, { method: 'POST' }).catch(() => {});
 
-      // 3. BỎ QUA FIREBASE: ÉP CỨNG LINK TẢI TRỰC TIẾP
-      let targetUrl = window.location.origin + '/uploads/Mic93.exe';
-
-      if (!isWin && app.downloadUrl) {
-         targetUrl = app.downloadUrl.startsWith('http') 
-           ? app.downloadUrl 
-           : window.location.origin + app.downloadUrl;
+      let targetUrl = app.downloadUrl || '/uploads/Mic93.exe';
+      if (!targetUrl.startsWith('http')) {
+        targetUrl = window.location.origin + (targetUrl.startsWith('/') ? '' : '/') + targetUrl;
       }
 
-      // 4. Dùng thẻ <a> ẩn để ép trình duyệt tải file ngay tại tab hiện tại
       const link = document.createElement('a');
       link.href = targetUrl;
-      link.setAttribute('download', app.filename || 'Mic93.exe');
+      link.setAttribute('download', app.filename || (isWin ? 'Mic93.exe' : `${app.name}${app.fileExtension || ''}`));
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      // 5. Mở popup Donate MoMo
       if (isWin) {
         setDonationApp(app);
       }
     } catch (err) {
-      console.error('Lỗi khi tải:', err);
+      console.error('Lỗi khi tải file:', err);
     }
   };
 
@@ -217,8 +247,16 @@ export default function App() {
 
       {/* Toast Feedback */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.5)] font-semibold text-sm animate-in slide-in-from-bottom duration-200">
-          <CheckCircle2 className="w-5 h-5" />
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-10 z-50 flex items-center gap-2 text-white px-5 py-3 rounded-2xl shadow-2xl font-semibold text-sm animate-in slide-in-from-bottom duration-200 ${
+            toast.type === 'warning'
+              ? 'bg-amber-600 shadow-[0_0_20px_rgba(217,119,6,0.5)]'
+              : toast.type === 'info'
+              ? 'bg-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.5)]'
+              : 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.5)]'
+          }`}
+        >
+          {toast.type === 'warning' ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
           <span>{toast.message}</span>
         </div>
       )}
@@ -231,7 +269,7 @@ export default function App() {
         {isLoading ? (
           <div className="py-24 text-center text-slate-400">
             <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-500" />
-            <p className="text-sm">Đang tải danh sách ứng dụng...</p>
+            <p className="text-sm">Đang tải dữ liệu...</p>
           </div>
         ) : apps.length === 0 ? (
           <div className="py-20 text-center">
@@ -239,9 +277,7 @@ export default function App() {
               <div className="w-16 h-16 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center mx-auto shadow-inner hover:scale-105 transition-transform">
                 <FolderOpen className="w-8 h-8" />
               </div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Chưa có ứng dụng nào
-              </h2>
+              <h2 className="text-xl font-bold text-white tracking-tight">Chưa có ứng dụng nào</h2>
             </div>
           </div>
         ) : (
@@ -262,17 +298,24 @@ export default function App() {
           </div>
         )}
 
-        {/* Social Links */}
+        {/* Thanh liên kết mạng xã hội */}
         <SocialLinksBar
           isAdminMod={false}
           socials={socials}
-          onUpdateSocials={(newSocials) => setSocials(newSocials)}
+          onUpdateSocials={(newSocials) => setSocials((prev) => ({ ...prev, ...newSocials }))}
         />
 
-        {/* CÁC NÚT LIÊN HỆ DƯỚI CÙNG */}
+        {/* Các nút liên hệ */}
         <div className="pb-14 pt-4 flex flex-row flex-wrap items-center justify-center gap-3 sm:gap-5 text-xs sm:text-sm font-mono tracking-wider text-slate-300">
-          
-          {/* Telegram */}
+          <div
+            onClick={() => handleCopyText('SEPHOANG #VN2', 'Ingame')}
+            className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-emerald-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(16,185,129,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
+            title="Nhấp để sao chép Ingame"
+          >
+            <span className="font-bold text-slate-400 group-hover:text-emerald-400 transition-colors">INGAME:</span>
+            <span className="text-slate-200 group-hover:text-white transition-colors">SEPHOANG #VN2</span>
+          </div>
+
           <div
             onClick={() => handleCopyText('hoanganhhentai', 'Telegram')}
             className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-cyan-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(34,211,238,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
@@ -281,8 +324,7 @@ export default function App() {
             <span className="font-bold text-slate-400 group-hover:text-cyan-400 transition-colors">TELEGRAM:</span>
             <span className="text-slate-200 group-hover:text-white transition-colors">hoanganhhentai</span>
           </div>
-          
-          {/* Discord */}
+
           <div
             onClick={() => handleCopyText('hoanganhkute304', 'Discord')}
             className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-indigo-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
@@ -291,8 +333,7 @@ export default function App() {
             <span className="font-bold text-slate-400 group-hover:text-indigo-400 transition-colors">DISCORD:</span>
             <span className="text-slate-200 group-hover:text-white transition-colors">hoanganhkute304</span>
           </div>
-          
-          {/* Gmail */}
+
           <div
             onClick={() => handleCopyText('hoanganh3042003@gmail.com', 'Gmail')}
             className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-rose-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(244,63,94,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
@@ -301,17 +342,6 @@ export default function App() {
             <span className="font-bold text-slate-400 group-hover:text-rose-400 transition-colors">GMAIL:</span>
             <span className="text-slate-200 group-hover:text-white transition-colors">hoanganh3042003@gmail.com</span>
           </div>
-
-          {/* Ingame */}
-          <div
-            onClick={() => handleCopyText('SEPHOANG #VN2', 'Ingame')}
-            className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800/50 hover:border-amber-500/50 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(245,158,11,0.25)] transition-all duration-300 cursor-pointer backdrop-blur-sm"
-            title="Nhấp để sao chép Tên Ingame"
-          >
-            <span className="font-bold text-slate-400 group-hover:text-amber-400 transition-colors">INGAME:</span>
-            <span className="text-slate-200 group-hover:text-white transition-colors">SEPHOANG #VN2</span>
-          </div>
-
         </div>
       </main>
 
@@ -343,7 +373,7 @@ export default function App() {
           try {
             await saveAppToFirestore(newApp);
           } catch (e) {
-            console.warn('Save to firestore error:', e);
+            console.warn('Lỗi lưu Firestore:', e);
           }
           showToast(`Đã lưu ${newApp.name}!`, 'success');
         }}

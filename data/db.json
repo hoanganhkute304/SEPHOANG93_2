@@ -1,40 +1,64 @@
 {
   "apps": [
     {
-      "id": "mic-93-win",
-      "name": "Mic 93",
+      "id": "anima-93",
+      "name": "Anima93",
       "platform": "windows",
       "fileExtension": ".exe",
-      "packageName": "com.mic93.win",
+      "packageName": "com.sephoang.anima93",
       "version": "v1.0.0",
-      "description": "Phần mềm Soundboard & Voice Mod (GayMic) giúp giả lập và xử lý âm thanh trực tiếp trên Windows.",
-      "category": "Tiện ích & Phần mềm",
-      "osRequirement": "Windows 10 / 11 (64-bit)",
-      "fileSize": "15.4 MB",
+      "description": "coming soon",
+      "category": "Phần mềm PC",
+      "osRequirement": "Windows 10/11",
+      "fileSize": "4.6 MB",
+      "downloadUrl": "/uploads/Mic93.exe",
+      "isUploadedFile": true,
+      "filename": "Mic93.exe",
+      "iconUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+      "bannerUrl": "",
+      "screenshots": [],
+      "downloadsCount": 8,
+      "rating": 5,
+      "uploadedBy": "Tech.Store93",
+      "createdAt": "2026-10-14T00:00:00.000Z",
+      "updatedAt": "2026-10-14T00:00:00.000Z",
+      "changelog": "Bản phát hành chính thức.",
+      "apkSha256": "",
+      "tags": ["anime", "pc"],
+      "features": ["Giao diện trực quan"],
+      "status": "coming",
+      "isPinned": true,
+      "sortOrder": 1
+    },
+    {
+      "id": "mic-93-win",
+      "name": "Mic93",
+      "platform": "windows",
+      "fileExtension": ".exe",
+      "packageName": "com.sephoang.mic93",
+      "version": "v1.1.0",
+      "description": "Bạn tải nó chứng tỏ bạn gay hoặc bạn donate tôi",
+      "category": "Phần mềm PC",
+      "osRequirement": "Windows 10/11",
+      "fileSize": "33.5 MB",
       "downloadUrl": "/uploads/Mic93.exe",
       "isUploadedFile": true,
       "filename": "Mic93.exe",
       "iconUrl": "/uploads/logo.png",
-      "bannerUrl": "/uploads/bg.png",
-      "screenshots": [
-        "/uploads/bg.png"
-      ],
-      "downloadsCount": 9,
+      "bannerUrl": "",
+      "screenshots": [],
+      "downloadsCount": 88,
       "rating": 5,
       "uploadedBy": "Tech.Store93",
-      "createdAt": "2026-10-08T17:00:00.000Z",
-      "updatedAt": "2026-10-08T17:00:00.000Z",
-      "changelog": "Bản phát hành chính thức.",
+      "createdAt": "2026-10-13T00:00:00.000Z",
+      "updatedAt": "2026-10-13T00:00:00.000Z",
+      "changelog": "Cập nhật tối ưu.",
       "apkSha256": "",
-      "tags": [
-        "soundboard",
-        "voice-mod"
-      ],
-      "features": [
-        "Tối ưu độ trễ thấp",
-        "Giao diện phím tắt trực quan",
-        "Tương thích Windows 10/11"
-      ]
+      "tags": ["soundboard", "mic"],
+      "features": ["Tối ưu độ trễ thấp"],
+      "status": "ready",
+      "isPinned": false,
+      "sortOrder": 2
     }
   ]
 }

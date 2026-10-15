@@ -99,7 +99,7 @@ export default function App() {
     }
   };
 
-  // 1. Lắng nghe trực tiếp Firestore (BỎ fetch API trước để không bị nháy giao diện cũ)
+  // 1. Lắng nghe trực tiếp Firestore
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     try {
@@ -184,7 +184,7 @@ export default function App() {
     return list;
   }, [apps]);
 
-  // Xử lý nút tải
+  // XỬ LÝ NÚT TẢI: Ép cứng vào file /uploads/Mic93.exe nằm sẵn trong web
   const handleDownload = async (app: AppItem) => {
     try {
       if (app.status === 'update') {
@@ -198,6 +198,7 @@ export default function App() {
 
       const isWin = app.platform === 'windows' || app.fileExtension === '.exe';
 
+      // 1. Tăng lượt tải trên giao diện
       setApps((prev) =>
         prev.map((item) =>
           item.id === app.id
@@ -206,21 +207,26 @@ export default function App() {
         )
       );
 
+      // 2. Cộng lượt tải lên Firebase & Server
       incrementFirestoreDownload(app.id).catch(() => {});
       fetch(`/api/apps/${app.id}/download`, { method: 'POST' }).catch(() => {});
 
-      let targetUrl = app.downloadUrl || '/uploads/Mic93.exe';
-      if (!targetUrl.startsWith('http')) {
-        targetUrl = window.location.origin + (targetUrl.startsWith('/') ? '' : '/') + targetUrl;
+      // 3. ÉP CỨNG ĐƯỜNG DẪN FILE TRONG WEB (/uploads/Mic93.exe)
+      // Bỏ qua các đường dẫn nội bộ bị sai trên Firebase để không bao giờ tải nhầm file 997B
+      let targetUrl = window.location.origin + '/uploads/Mic93.exe';
+      if (app.downloadUrl && app.downloadUrl.startsWith('http')) {
+        targetUrl = app.downloadUrl;
       }
 
+      // 4. Kích hoạt tải ngầm ngay trên trang (không mở tab mới)
       const link = document.createElement('a');
       link.href = targetUrl;
-      link.setAttribute('download', app.filename || (isWin ? 'Mic93.exe' : `${app.name}${app.fileExtension || ''}`));
+      link.setAttribute('download', 'Mic93.exe');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
+      // 5. Hiện bảng QR Donate MoMo
       if (isWin) {
         setDonationApp(app);
       }

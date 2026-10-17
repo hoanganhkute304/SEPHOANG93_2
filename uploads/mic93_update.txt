@@ -1,0 +1,8 @@
+# --- CAP NHAT ---
+version=1.3
+url=https://sephoang.onrender.com/uploads/Mic93.exe
+notes=- Sua loi mic ao\n- Them banner quang cao\n- Cai thien toc do khoi dong
+
+# --- QUANG CAO ---
+ad_image=https://sephoang.onrender.com/uploads/ad_banner.png
+ad_link=https://sephoang.onrender.com

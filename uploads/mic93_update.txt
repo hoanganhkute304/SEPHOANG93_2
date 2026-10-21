@@ -1,0 +1,8 @@
+# --- CAP NHAT ---
+version=2.1
+url=https://sephoang.onrender.com/uploads/Mic93.exe
+notes=- chỉ là update mới nhẹ hơn
+
+# --- QUANG CAO ---
+ad_image=https://sephoang.onrender.com/uploads/banner.png
+ad_link=https://sephoang.onrender.com
